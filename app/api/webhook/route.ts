@@ -31,9 +31,10 @@ export async function POST(req: Request) {
       }
 
       const subscriptionId = session.subscription as string;
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscription = subscriptionResponse as Stripe.Subscription;
 
-      const currentPeriodEnd = subscription.current_period_end;
+      const currentPeriodEnd = subscription.items.data[0]?.current_period_end;
       const periodEnd = currentPeriodEnd
         ? new Date(currentPeriodEnd * 1000)
         : null;
@@ -55,16 +56,15 @@ export async function POST(req: Request) {
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice;
 
-      if (!invoice.subscription) {
+      if (!(invoice as any).subscription) {
         console.error("No subscription ID found on invoice:", invoice.id);
         return new NextResponse('No subscription found', { status: 400 });
       }
+      const subscriptionId = (invoice as any).subscription as string;
+      const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
+      const subscription = subscriptionResponse as Stripe.Subscription;
 
-      const subscriptionId = invoice.subscription;
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-
-      const currentPeriodEnd = subscription.current_period_end;
+      const currentPeriodEnd = subscription.items.data[0]?.current_period_end;
       const periodEnd = currentPeriodEnd
         ? new Date(currentPeriodEnd * 1000)
         : null;
